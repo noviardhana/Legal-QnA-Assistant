@@ -1,0 +1,9 @@
+.streamlit/secrets.toml
+legal_docs/
+__pycache__/
+*.pyc
+.env
+.venv/
+venv312/
+venv314/
+outputs/

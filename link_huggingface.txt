@@ -1,0 +1,2 @@
+Fine-tuned model: https://huggingface.co/noviardhana/llama3-legal-id-ft
+GRPO model: https://huggingface.co/noviardhana/llama3-legal-id-grpo

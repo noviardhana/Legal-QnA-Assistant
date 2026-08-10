@@ -1,0 +1,35 @@
+# Requirements for the Fine-tuning / GRPO / RAG notebooks (run on GPU, e.g. Colab).
+# For the lightweight Streamlit dashboard (CPU only, generation via HF Inference API),
+# use requirements.txt instead.
+
+# --- Core training stack ---
+unsloth
+trl>=0.9.0
+peft
+accelerate
+bitsandbytes
+xformers
+torch
+
+# --- Data & evaluation ---
+datasets
+sentencepiece
+rouge-score
+sacrebleu
+matplotlib
+
+# --- RAG stack ---
+langchain>=0.2
+langchain-community>=0.2
+langchain-huggingface>=0.0.3
+langchain-text-splitters>=0.2
+sentence-transformers>=3.0
+faiss-cpu>=1.8
+rank_bm25>=0.2
+pypdf>=4.0
+ddgs>=1.0
+
+# --- Interface & utilities ---
+gradio
+huggingface_hub
+gdown
