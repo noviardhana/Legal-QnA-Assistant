@@ -59,9 +59,26 @@ RETRIEVAL_TOP_K = 5                # Number of docs to retrieve before reranking
 RERANK_TOP_K = 3                   # Number of docs to rerank (for context)
 RELEVANCE_THRESHOLD = 0.0           # Minimum rerank score (tune based on your data)
 
+def _get_config(key, default=""):
+    """
+    Read a config value from Streamlit secrets, falling back to environment
+    variables, then to `default`.
+
+    Wrapped in try/except because `st.secrets` raises if no secrets.toml
+    file exists at all (e.g. during local dev without one configured) —
+    accessing the attribute fails before `.get()` can even run.
+    """
+    try:
+        if key in st.secrets:
+            return st.secrets[key]
+    except Exception:
+        pass
+    return os.environ.get(key, default)
+
+
 # HuggingFace Model Configuration
-HF_MODEL_REPO = st.secrets.get("HF_MODEL_REPO", os.environ.get("HF_MODEL_REPO", ""))
-HF_API_TOKEN = st.secrets.get("HF_API_TOKEN", os.environ.get("HF_API_TOKEN", ""))
+HF_MODEL_REPO = _get_config("HF_MODEL_REPO")
+HF_API_TOKEN = _get_config("HF_API_TOKEN")
 
 # Models for embedding and reranking
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-mpnet-base-v2"
@@ -326,7 +343,7 @@ def call_hf_inference(prompt, max_new_tokens=400):
             "Set HF_MODEL_REPO and HF_API_TOKEN in Streamlit Secrets."
         )
     
-    api_url = f"https://api-inference.huggingface.co/models/{HF_MODEL_REPO}"
+    api_url = f"https://router.huggingface.co/hf-inference/models/{HF_MODEL_REPO}"
     headers = {"Authorization": f"Bearer {HF_API_TOKEN}"}
     
     payload = {
@@ -340,18 +357,28 @@ def call_hf_inference(prompt, max_new_tokens=400):
     
     try:
         resp = requests.post(api_url, headers=headers, json=payload, timeout=120)
-        resp.raise_for_status()
-        data = resp.json()
-        
-        # Handle different response formats
-        if isinstance(data, list) and data and "generated_text" in data[0]:
-            return data[0]["generated_text"].strip()
-        
+
+        # Try to parse JSON body first, even on non-2xx responses.
+        # HF returns structured error info (e.g. "model is loading") in the
+        # body on 503, so raise_for_status() must NOT run before this check —
+        # otherwise it raises immediately and the friendly message below
+        # becomes unreachable.
+        try:
+            data = resp.json()
+        except ValueError:
+            data = None
+
         if isinstance(data, dict) and "error" in data:
             return f"⚠️ Model loading on HF Inference API. Try again in a moment: {data['error']}"
-        
+
+        # No structured error in the body — now it's safe to raise on HTTP errors.
+        resp.raise_for_status()
+
+        if isinstance(data, list) and data and "generated_text" in data[0]:
+            return data[0]["generated_text"].strip()
+
         return str(data)
-    
+
     except requests.exceptions.RequestException as e:
         return f"⚠️ Failed to reach HuggingFace Inference API: {e}"
 
